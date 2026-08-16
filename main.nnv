@@ -1,0 +1,3 @@
+// Привет нигер мэн сопииииииля
+set string1: string = "Hello, world!";
+rtm_print(string1);
