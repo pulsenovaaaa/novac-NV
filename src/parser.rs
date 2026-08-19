@@ -1,4 +1,4 @@
-use crate::{Expression, NType, Op, Program, Statement, Token};
+use crate::{BinaryOp, Expression, NType, Op, Program, Statement, Token};
 
 pub struct Parser<'a> {
     tokens: &'a [Token],
@@ -74,7 +74,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_expr(&mut self) -> Result<Expression, String> {
+    fn parse_additive(&mut self) -> Result<Expression, String> {
         let mut left = self.parse_term()?;
 
         while let Some(tok) = self.peek() {
@@ -86,14 +86,44 @@ impl<'a> Parser<'a> {
             self.adv();
             let right = self.parse_term()?;
 
-            left = Expression::BinaryOp {
-                left: Box::new(left),
-                op,
-                right: Box::new(right),
+            left = Expression::BinaryOp { 
+                left: Box::new(left), 
+                op, 
+                right: Box::new(right), 
+            };
+        }
+
+        Ok(left)
+    }
+
+    fn parse_comp(&mut self) -> Result<Expression, String> {
+        let mut left = self.parse_additive()?;
+
+        while let Some(tok) = self.peek() {
+            let op = match tok {
+                Token::LogicalGreaterEqual => Op::GreaterEq,
+                Token::LogicalLessEqual => Op::LessEq,
+                Token::EqualsEquals => Op::Equal,
+                Token::LogicalNotEqual => Op::NotEq,
+                Token::LogicalGreater => Op::Greater,
+                Token::LogicalLess => Op::Less,
+                _ => break,
+            };
+            self.adv();
+            let right = self.parse_additive()?;
+
+            left = Expression::BinaryOp { 
+                left: Box::new(left), 
+                op, 
+                right: Box::new(right) 
             }
         }
 
         Ok(left)
+    }
+
+    fn parse_expr(&mut self) -> Result<Expression, String> {
+        self.parse_comp()
     }
 
     fn expect(&mut self, exp: Token) -> Result<Token, String> {
@@ -243,6 +273,22 @@ impl<'a> Parser<'a> {
         Ok(Statement::Set { name, ty, val })
     }
 
+    fn parse_if_statement(&mut self) -> Result<Statement, String>{
+        // Условие
+        let expr = self.parse_expr()?;
+
+        // Скобка
+        self.expect(Token::OpenCurly)?;
+
+        let mut then_br = Vec::new();
+        while self.peek() != Some(&Token::CloseCurly) {
+            then_br.push(self.parse_statement()?);
+        }
+        self.expect(Token::CloseCurly)?;
+
+        Ok(Statement::If { condition: expr, then_br, else_br: None })
+    }
+
     fn parse_statement(&mut self) -> Result<Statement, String> {
         match self.adv() {
             Some(Token::KeywordPutChar) => self.parse_pchar(),
@@ -251,6 +297,8 @@ impl<'a> Parser<'a> {
             Some(Token::KeywordExit) => self.parse_exit_statement(),
 
             Some(Token::CRuntimeKeywordPrint) => self.parse_c_rtm_print(),
+
+            Some(Token::KeywordIf) => self.parse_if_statement(),
 
             Some(token) => Err(format!("Unknown token: {:?}", token)),
             None => Err("Unexpected EOF".into()),

@@ -1,0 +1,33 @@
+// Это NNV черт подери!
+
+met u32_to_string(value: u32) -> string {
+    set str: string = "";
+
+    if value == 0 {
+        str.push('0');
+        return str;
+    }
+
+    while value > 0 {
+        str.push(((value % 10) + '0') as char);
+        value /= 10;
+    }
+    str.reverse();
+    return str;
+}
+
+met func(value: u32) -> never {
+    set str3: string = "Here is itoa'ed value: ";
+    rtm_print(str3);
+
+    set str2: string = u32_to_string(value);
+    rtm_print(str2);
+
+    putchar('\n');
+}
+
+met main() {
+    set str1: string = "We are in function main!\n";
+    rtm_print(str1);
+    func(565699);
+}

@@ -16,21 +16,21 @@ mod parser;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Token {
+    // Слова
     KeywordExit,
     KeywordSet,
     KeywordPutChar,
+    KeywordIf,
+    KeywordElse,
     CRuntimeKeywordPrint,
 
+    // Операторы (Пока что в общих токенах)
     BinPlus,
     BinMinus,
     BinMul,
     BinDiv,
-    Ampersand,
-
-    LogicalAND,
-    LogicalOR,
-    LogicalNot,
-
+    
+    // Операторы ()= 
     PlusEq,
     SubEq,
     MulEq,
@@ -38,11 +38,24 @@ pub enum Token {
     BOrEq,
     MaskEq,
 
+    // Вентили
+    LogicalAND,
+    LogicalOR,
+    LogicalNot,
+    LogicalGreater,
+    LogicalLess,
+    LogicalGreaterEqual,
+    LogicalLessEqual,
+    EqualsEquals,
+    LogicalNotEqual,
+
+    // Битовые операторы
     BitOR,
     BitAND,
     BitMask,
     BitNot,
 
+    // Данные/Типы (Обертки) 
     Identifier(String),
     IntLiteral(i64),
     Char(u8),
@@ -50,8 +63,11 @@ pub enum Token {
     UnterminatedString,
     Comment,
 
+    // Символы и 'scrap'
+    Exclamation,
+    Question,
+    Ampersand,
     Equals,
-    EqualsEquals,
     HashTag,
     Dollar,
     Slash,
@@ -59,9 +75,22 @@ pub enum Token {
     SemiColon,
     OpenParen,
     CloseParen,
+
+    OpenCurly,
+    CloseCurly,
     Unknown,
 
     Scrap,
+}
+
+#[derive(Debug)]
+pub enum BinaryOp {
+    GreaterEq,
+    LessEq,
+    Less,
+    Greater,
+    NotEq,
+    Equal,
 }
 
 #[derive(Debug)]
@@ -70,6 +99,12 @@ pub enum Op {
     Sub,
     Mul,
     Div,
+    GreaterEq,
+    LessEq,
+    Less,
+    Greater,
+    NotEq,
+    Equal,
 }
 
 #[derive(Debug)]
@@ -115,6 +150,11 @@ pub enum Statement {
         val: Option<Expression>,
     },
     CRtmPrint(Expression),
+    If {
+        condition: Expression,
+        then_br: Vec<Statement>,
+        else_br: Option<Vec<Statement>>,
+    },
 }
 
 #[derive(Debug)]
@@ -183,6 +223,8 @@ fn main() {
             let mut parser = Parser::new(&tokens);
             let ast = parser.parse().unwrap();
             show_ast(&ast);
+
+            println!("{:#?}", ast);
         }
         State::Tokens => {
             let buf = fs::read_to_string("main.nnv").expect("Read error!");

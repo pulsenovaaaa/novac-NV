@@ -21,6 +21,10 @@ impl Codegen {
         }
     }
 
+    fn generate_if(&self, expr: &Expression) {
+
+    }
+
     pub fn generate_expression(&self, expr: &Expression) -> String {
         match expr {
             Expression::Int(val) => val.to_string(),
@@ -35,6 +39,14 @@ impl Codegen {
                     Op::Sub => "-",
                     Op::Mul => "*",
                     Op::Div => "/",
+                    Op::Equal => "=",
+                    Op::Greater => ">",
+                    Op::Less => "<",
+                    Op::GreaterEq => ">=",
+                    Op::LessEq => "<=",
+                    Op::NotEq => "!=",
+
+                    _ => todo!("Ops"),
                 };
 
                 format!("({} {} {})", left_code, op_s, right_code)
@@ -117,6 +129,13 @@ impl Codegen {
                 Statement::PutChar(ascii_char) => {
                     let char_code = self.generate_expression(ascii_char);
                     output.push_str(&format!("    putchar({});\n", char_code));
+                }
+
+                Statement::If { condition, then_br, else_br } => {
+                    output.push_str("    if ");
+                    let expr = self.generate_expression(condition);
+                    output.push_str(" {\n");
+                    output.push_str("}\n");
                 }
 
                 Statement::CRtmPrint(s) => {

@@ -34,11 +34,13 @@ impl<'a> Lexer<'a> {
         }
 
         match ident.as_str() {
-            "exit" => Token::KeywordExit,
-            "set" => Token::KeywordSet,
-            "putchar" => Token::KeywordPutChar,
-            "rtm_print" => Token::CRuntimeKeywordPrint,
-            _ => Token::Identifier(ident),
+            "exit" =>       Token::KeywordExit,
+            "set" =>        Token::KeywordSet,
+            "if" =>         Token::KeywordIf,
+            "else" =>       Token::KeywordElse,
+            "putchar" =>    Token::KeywordPutChar,
+            "rtm_print" =>  Token::CRuntimeKeywordPrint,
+            _ =>            Token::Identifier(ident),
         }
     }
 
@@ -111,6 +113,41 @@ impl<'a> Lexer<'a> {
                         return self.next_token();
                     }
                     _ => Token::BinDiv,
+                }
+            }
+            '<' => {
+                self.chars.next();
+                if self.chars.peek() == Some(&'=') {
+                    self.chars.next();
+                    Token::LogicalLessEqual
+                } else {
+                    Token::LogicalLess
+                }
+            },
+            '>' => {
+                self.chars.next();
+                if self.chars.peek() == Some(&'=') {
+                    self.chars.next();
+                    Token::LogicalGreaterEqual
+                } else {
+                    Token::LogicalGreater
+                }
+            },
+            '{' => {
+                self.chars.next();
+                Token::OpenCurly
+            },
+            '}' => {
+                self.chars.next();
+                Token::CloseCurly
+            },
+            '!' => {
+                self.chars.next();
+                if self.chars.peek() == Some(&'=') {
+                    self.chars.next();
+                    Token::LogicalNotEqual
+                } else {
+                    Token::Exclamation
                 }
             }
             '&' => {

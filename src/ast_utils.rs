@@ -19,11 +19,6 @@ pub fn show_ast(ast: &Program) {
                     Some(Expression::Var(s)) => s.clone(),
                     Some(Expression::Char(c)) => (*c).to_string(),
                     Some(Expression::ConstChar(ch)) => ch.clone(),
-                    Some(Expression::AddrOf(addr)) => {
-                        let boxed = &*addr;
-                        "s".to_string()
-                    }
-
 
                     None => format!("None"),
                     _ => format!("Unknown"),
@@ -32,6 +27,14 @@ pub fn show_ast(ast: &Program) {
                 println!("│ ├ Type:  {:?}", ty);
                 println!("│ └ Value: {:?}", unw_val);
                 println!("│ ");
+            }
+            Statement::If { condition, then_br, else_br } => {
+                match condition {
+                    Expression::BinaryOp { left, op, right } => {
+                        
+                    }
+                    _ => {}
+                }
             }
             Statement::Exit(expr) => {
                 println!("├ Exit: ");

@@ -1,3 +1,4 @@
-// Привет нигер мэн сопииииииля
-set string1: string = "Hello, world!";
-rtm_print(string1);
+set a = 60;
+if a < 120 {
+    
+}
