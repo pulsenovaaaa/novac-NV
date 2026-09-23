@@ -25,6 +25,7 @@ void nv_string_concat(nv_string *dst, const nv_string *src);
 // I/O
 void nv_putchar(char c);
 void nv_print_string(const nv_string *str);
+void nv_stringinfo(const nv_string *str);
 int nv_getchar(void);
 
 // Память

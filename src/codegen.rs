@@ -1,6 +1,9 @@
-use std::{fmt::format, fs, process::Command};
+use std::{fs, process::Command};
 
-use crate::{Expression, NType, Op, Program, Statement, warning};
+use crate::{
+    enums::{Expression, NType, Op, Program, Statement},
+    warning,
+};
 
 pub struct Codegen {
     version: String,
@@ -19,10 +22,6 @@ impl Codegen {
             generated: String::new(),
             warnings: 0,
         }
-    }
-
-    fn generate_if(&self, expr: &Expression) {
-
     }
 
     pub fn generate_expression(&self, expr: &Expression) -> String {
@@ -45,8 +44,6 @@ impl Codegen {
                     Op::GreaterEq => ">=",
                     Op::LessEq => "<=",
                     Op::NotEq => "!=",
-
-                    _ => todo!("Ops"),
                 };
 
                 format!("({} {} {})", left_code, op_s, right_code)
@@ -60,11 +57,11 @@ impl Codegen {
             Expression::ConstChar(string) => {
                 format!("nv_string_from_cstring(\"{}\")", string)
             }
+            Expression::Call { name, args } => "NO!".to_string(),
             Expression::Cast {
                 target_type: _,
                 expr,
             } => self.generate_expression(expr),
-            Expression::ConstChar(string) => string.clone(),
         }
     }
 
@@ -108,6 +105,8 @@ impl Codegen {
                         Expression::Var(var_name) => {
                             output.push_str(&format!("    exit({});\n", var_name))
                         }
+
+                        #[allow(unused_variables)]
                         Expression::BinaryOp { left, op, right } => {
                             output.push_str("    exit(");
                             output.push_str(&self.generate_expression(left));
@@ -131,7 +130,12 @@ impl Codegen {
                     output.push_str(&format!("    putchar({});\n", char_code));
                 }
 
-                Statement::If { condition, then_br, else_br } => {
+                #[allow(unused_variables)]
+                Statement::If {
+                    condition,
+                    then_br,
+                    else_br,
+                } => {
                     output.push_str("    if ");
                     let expr = self.generate_expression(condition);
                     output.push_str(" {\n");
@@ -210,3 +214,5 @@ impl Codegen {
         }
     }
 }
+
+// ASM

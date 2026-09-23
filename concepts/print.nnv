@@ -1,0 +1,28 @@
+met main() {
+    // New function!
+    // Print -- print(Formattable<const &str>, Displayable<T, ..>);
+    // Formattable -- Это интерфейс для строк, а точнее для их форматирования.
+    // на вход получает константную строку и связку {} для форматирования аргументов
+    // Displayable -- Это интерфейс для Formattable, позволяющий превратить {} в 5 например.
+
+    set val1: i32 = 5;
+    print("value number 1 is: {}", val1); // Выведет: "value number 1 is: 5"
+
+    set ptr1: i32 = &val1;
+    print("pointer to val1 is: {}", ptr1); // Выведет: "pointer to val1 is: 0x....."
+
+    set str1: string = "world!";
+    print("Hello, {}", str1); // Выведет: "Hello, world!"
+
+    print("Name of val1: {}", val1.var_name); // Выведет: "Name of val1: val1"
+    // Тут интересно, так как вместо val1, поставится _ с типом String, который возьмет
+    // имя переменной прямо из хешмапа символов во время компиляции.
+
+    set some_enum: internalEnum<T> = {
+        Some_1(i32),
+        Some_2(string),
+        Some_3(bool),
+    }
+
+    print("some_enum: {}", some_enum[1]); // Выведет: "some_enum: Some_2(string)"
+}

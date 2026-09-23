@@ -1,11 +1,14 @@
-use crate::{BinaryOp, Expression, NType, Op, Program, Statement, Token};
+use crate::enums::{
+    Expression, NType, Op, Param, Program, Statement,
+    Token::{self, OpenCurly},
+};
 
-pub struct Parser<'a> {
+pub struct ParserNNV<'a> {
     tokens: &'a [Token],
     cursor: usize,
 }
 
-impl<'a> Parser<'a> {
+impl<'a> ParserNNV<'a> {
     pub fn new(tokens: &'a [Token]) -> Self {
         Self { tokens, cursor: 0 }
     }
@@ -69,6 +72,31 @@ impl<'a> Parser<'a> {
             Some(Token::IntLiteral(val)) => Ok(Expression::Int(*val)),
             Some(Token::Identifier(name)) => Ok(Expression::Var(name.clone())),
             Some(Token::Char(c)) => Ok(Expression::Char(*c)),
+
+            Some(Token::Identifier(name)) => {
+                let name = name.clone();
+
+                if self.peek() == Some(&Token::OpenParen) {
+                    self.adv();
+                    let mut args = Vec::new();
+
+                    if self.peek() != Some(&Token::CloseParen) {
+                        loop {
+                            args.push(self.parse_expr()?);
+                            if self.peek() == Some(&Token::Comma) {
+                                self.adv();
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                    self.expect(Token::CloseParen)?;
+                    Ok(Expression::Call { name, args })
+                } else {
+                    Ok(Expression::Var(name))
+                }
+            }
+
             Some(token) => Err(format!("Ожидалось выражение, получено {:?}", token)),
             None => Err("Неожиданный EOF при разборе выражения".into()),
         }
@@ -86,10 +114,10 @@ impl<'a> Parser<'a> {
             self.adv();
             let right = self.parse_term()?;
 
-            left = Expression::BinaryOp { 
-                left: Box::new(left), 
-                op, 
-                right: Box::new(right), 
+            left = Expression::BinaryOp {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
             };
         }
 
@@ -112,10 +140,10 @@ impl<'a> Parser<'a> {
             self.adv();
             let right = self.parse_additive()?;
 
-            left = Expression::BinaryOp { 
-                left: Box::new(left), 
-                op, 
-                right: Box::new(right) 
+            left = Expression::BinaryOp {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
             }
         }
 
@@ -161,16 +189,36 @@ impl<'a> Parser<'a> {
         Ok(Statement::PutChar(expr))
     }
 
-    // fn parse_set(&mut self) -> Result<Statement, String> {
-    //     let name = self.expect_ident()?;
+    pub fn parse_assign(&mut self, idt_name: &String) -> Result<Statement, String> {
+        // Skip '='
+        self.expect(Token::Equals)?;
 
-    // }
+        // Get expression of assignment
+        let expr = self.parse_expr()?;
+
+        // Check semicolon
+        self.expect(Token::SemiColon)?;
+
+        // Return ASGN statement
+        Ok(Statement::Assign {
+            name: idt_name.to_string(),
+            val: expr,
+        })
+    }
 
     fn parse_type(&mut self) -> Result<NType, String> {
         match self.adv() {
             Some(Token::Identifier(name)) => match name.as_str() {
+                "i8" => Ok(NType::I8),
+                "i16" => Ok(NType::I16),
+                "i32" => Ok(NType::I32),
                 "i64" => Ok(NType::I64),
+
                 "u8" => Ok(NType::U8),
+                "u16" => Ok(NType::U16),
+                "u32" => Ok(NType::U32),
+                "u64" => Ok(NType::U64),
+
                 "int" => Ok(NType::Int),
                 "char" => Ok(NType::Char),
                 "string" => Ok(NType::String),
@@ -191,7 +239,7 @@ impl<'a> Parser<'a> {
 
         let expr = self.parse_expr()?;
         match &expr {
-            Expression::Var(s) => {}
+            Expression::Var(_) => {}
             _ => {
                 return Err("CRtmPrint: ожидалась переменная".into());
             }
@@ -217,63 +265,100 @@ impl<'a> Parser<'a> {
         Ok(Statement::Exit(expr))
     }
 
-    fn parse_declaration(&mut self) -> Result<Statement, String> {
-        let mut initialized = false;
-        /* 1. Имя переменной  */
+    fn parse_params(&mut self) -> Result<Vec<Param>, String> {
+        self.expect(Token::OpenParen)?;
+        let mut params = Vec::new();
+
+        if self.peek() != Some(&Token::CloseParen) {
+            loop {
+                let name = self.expect_ident()?;
+                self.expect(Token::Colon)?;
+                let ty = self.parse_type()?;
+
+                params.push(Param { name, ty });
+
+                if self.peek() == Some(&Token::Comma) {
+                    self.adv();
+                } else {
+                    break;
+                }
+            }
+        }
+
+        Ok(params)
+    }
+
+    fn parse_method_declaration(&mut self) -> Result<Statement, String> {
         let name = self.expect_ident()?;
-        /* 2. Проверка на :, если есть, тип явный. Иначе, автоматический */
-        let explicit_type = if let Some(Token::Colon) = self.peek() {
+        let args = self.parse_params()?;
+
+        self.adv();
+        let ret_ty = if self.peek() == Some(&Token::Arrow) {
             self.adv();
             Some(self.parse_type()?)
         } else {
             None
         };
-        /* 3. Ожидаем '=' или ';' */
-        match self.adv() {
-            Some(Token::Equals) => initialized = true,
-            Some(Token::SemiColon) => {}
-            _ => {
-                return Err("Ожидался '=' или ';'".into());
-            }
-        };
 
-        /* 4. Если переменная инициализирована, то парсим тип. Иначе, отправляем None */
-        let val = if initialized {
-            let expr = self.parse_expr()?;
-            match self.adv() {
-                Some(Token::SemiColon) => {}
-                _ => return Err("Ожидалось ';' в конце объявления переменной".into()),
-            }
-            Some(expr)
+        self.expect(Token::OpenCurly)?;
+
+        let mut body = Vec::new();
+        while self.peek() != Some(&Token::CloseCurly) {
+            body.push(self.parse_statement()?);
+        }
+
+        self.expect(Token::CloseCurly)?;
+
+        Ok(Statement::Met {
+            name,
+            args,
+            body,
+            ret_ty,
+        })
+    }
+
+    fn parse_declaration(&mut self) -> Result<Statement, String> {
+        let name = self.expect_ident()?; // Имя переменной
+
+        let exp_type = if self.peek() == Some(&Token::Colon) {
+            // Проверка на явный тип
+            self.adv();
+            Some(self.parse_type()?)
         } else {
             None
         };
 
-        let ty = match (explicit_type, &val) {
-            // Есть явный тип -> берем его
-            (Some(expl), _) => expl,
+        let val = if self.peek() == Some(&Token::Equals) {
+            // Проверка и выражение инициализации
+            self.adv();
+            Some(self.parse_expr()?)
+        } else {
+            None
+        };
 
-            // Нет явного типа, но есть простая константа для базового вывода
+        // EXPECTED SEMI-SUKA-COLON
+        self.expect(Token::SemiColon)?;
+
+        // Определение типа
+        let ty = match (exp_type, &val) {
+            (Some(expl), _) => expl,
             (None, Some(Expression::Int(_))) => NType::Int,
             (None, Some(Expression::Char(_))) => NType::Char,
             (None, Some(Expression::AddrOf(_))) => NType::Ptr(Box::new(NType::Int)),
-
-            // Для остальных выражений (переменных, бинарных операций) тип определит Typechecker
-            (None, Some(_)) => NType::Non,
-
-            // Ошибка: объявление без типа и без значения (например, `set x;`)
+            (None, Some(_)) => NType::Void,
             (None, None) => {
                 return Err(format!(
-                    "Переменная '{}' должна иметь тип или значение",
+                    "The variable '{}' must have a type or a value.",
                     name
                 ));
             }
         };
 
+        // Давай газуй в вектор епта
         Ok(Statement::Set { name, ty, val })
     }
 
-    fn parse_if_statement(&mut self) -> Result<Statement, String>{
+    fn parse_if_statement(&mut self) -> Result<Statement, String> {
         // Условие
         let expr = self.parse_expr()?;
 
@@ -286,21 +371,56 @@ impl<'a> Parser<'a> {
         }
         self.expect(Token::CloseCurly)?;
 
-        Ok(Statement::If { condition: expr, then_br, else_br: None })
+        Ok(Statement::If {
+            condition: expr,
+            then_br,
+            else_br: None,
+        })
+    }
+
+    fn parse_return(&mut self) -> Result<Statement, String> {
+        let expr = self.parse_expr()?;
+        self.expect(Token::SemiColon)?;
+
+        Ok(Statement::Return(Some(expr)))
+    }
+
+    fn parse_pointer_call(&mut self) -> Result<Statement, String> {
+        // Выражение 1
+        let target = self.parse_expr()?;
+
+        // Нужен '=' или ошибка
+        self.expect(Token::Equals)?;
+
+        // Выражение 2
+        let value = self.parse_expr()?;
+        self.expect(Token::SemiColon)?;
+
+        // *<expr1> = &<expr2> для примера:
+        // *ptr = &str;
+
+        Ok(Statement::DerefAssign { target, value })
     }
 
     fn parse_statement(&mut self) -> Result<Statement, String> {
         match self.adv() {
             Some(Token::KeywordPutChar) => self.parse_pchar(),
             Some(Token::KeywordSet) => self.parse_declaration(),
-
             Some(Token::KeywordExit) => self.parse_exit_statement(),
-
             Some(Token::CRuntimeKeywordPrint) => self.parse_c_rtm_print(),
-
             Some(Token::KeywordIf) => self.parse_if_statement(),
+            Some(Token::KeywordReturn) => self.parse_return(),
 
-            Some(token) => Err(format!("Unknown token: {:?}", token)),
+            Some(Token::Identifier(ident)) => {
+                let ident = ident.clone();
+                self.parse_assign(&ident)
+            }
+
+            Some(Token::BinMul) => self.parse_pointer_call(),
+
+            Some(Token::KeywordMet) => self.parse_method_declaration(),
+
+            Some(token) => Err(format!("Parser: Unknown token: {:?}", token)),
             None => Err("Unexpected EOF".into()),
         }
     }

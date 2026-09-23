@@ -1,242 +1,136 @@
 #![allow(unused)]
+use std::{path::PathBuf, process::exit};
 
-use std::{
-    env::{self, args},
-    fs,
-    process::exit,
+use crate::{
+    codegens::asm::{AsmCodegen, write_asm},
+    enums::{Expression, NType, Program, Statement},
+    lexer::{Lexer, read_to_str},
+    macros::show_parsed_nicely,
+    parser::ParserNNV,
 };
+use clap::{Parser, Subcommand, ValueEnum};
 
-use crate::{ast_utils::show_ast, codegen::Codegen, lexer::Lexer, parser::Parser};
-
-mod ast_utils;
 mod codegen;
+mod codegens;
+mod enums;
 mod lexer;
 mod macros;
 mod parser;
+mod semantic;
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Token {
-    // Слова
-    KeywordExit,
-    KeywordSet,
-    KeywordPutChar,
-    KeywordIf,
-    KeywordElse,
-    CRuntimeKeywordPrint,
-
-    // Операторы (Пока что в общих токенах)
-    BinPlus,
-    BinMinus,
-    BinMul,
-    BinDiv,
-    
-    // Операторы ()= 
-    PlusEq,
-    SubEq,
-    MulEq,
-    DivEq,
-    BOrEq,
-    MaskEq,
-
-    // Вентили
-    LogicalAND,
-    LogicalOR,
-    LogicalNot,
-    LogicalGreater,
-    LogicalLess,
-    LogicalGreaterEqual,
-    LogicalLessEqual,
-    EqualsEquals,
-    LogicalNotEqual,
-
-    // Битовые операторы
-    BitOR,
-    BitAND,
-    BitMask,
-    BitNot,
-
-    // Данные/Типы (Обертки) 
-    Identifier(String),
-    IntLiteral(i64),
-    Char(u8),
-    StringConstLiteral(String),
-    UnterminatedString,
-    Comment,
-
-    // Символы и 'scrap'
-    Exclamation,
-    Question,
-    Ampersand,
-    Equals,
-    HashTag,
-    Dollar,
-    Slash,
-    Colon,
-    SemiColon,
-    OpenParen,
-    CloseParen,
-
-    OpenCurly,
-    CloseCurly,
-    Unknown,
-
-    Scrap,
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    cmd: Commands,
 }
 
-#[derive(Debug)]
-pub enum BinaryOp {
-    GreaterEq,
-    LessEq,
-    Less,
-    Greater,
-    NotEq,
-    Equal,
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum BuildMode {
+    Unoptimized,
+    Standard,
+    Ultra,
+    Assembly,
 }
 
-#[derive(Debug)]
-pub enum Op {
-    Add,
-    Sub,
-    Mul,
-    Div,
-    GreaterEq,
-    LessEq,
-    Less,
-    Greater,
-    NotEq,
-    Equal,
-}
+#[derive(Debug, Subcommand)]
+enum Commands {
+    /// Build NNV code into executable (machine code)
+    #[command(name = "build")]
+    Build {
+        input_file: String,
 
-#[derive(Debug)]
-pub enum Expression {
-    Int(i64),
-    Var(String),
-    Char(u8),
-    ConstChar(String),
+        #[arg(short, long, default_value = "a.asm")]
+        output_file: Option<String>,
 
-    AddrOf(Box<Expression>),
-    Deref(Box<Expression>),
-
-    Cast {
-        target_type: NType,
-        expr: Box<Expression>,
+        #[arg(short, long)]
+        mode: Option<BuildMode>,
     },
 
-    BinaryOp {
-        left: Box<Expression>,
-        op: Op,
-        right: Box<Expression>,
+    /// Show AST without building
+    #[command(name = "tree")]
+    AST {
+        input_file: String,
+
+        #[arg(short, long, default_value = "new")]
+        format_type: String,
     },
-}
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum NType {
-    U8,
-    I64,
-    Int,
-    Char,
-    String,
-    Non,
-    Ptr(Box<NType>),
-}
+    #[command(name = "lexed")]
+    Lexed { input_file: String },
 
-#[derive(Debug)]
-pub enum Statement {
-    Exit(Expression),
-    PutChar(Expression),
-    Set {
-        name: String,
-        ty: NType,
-        val: Option<Expression>,
-    },
-    CRtmPrint(Expression),
-    If {
-        condition: Expression,
-        then_br: Vec<Statement>,
-        else_br: Option<Vec<Statement>>,
-    },
-}
-
-#[derive(Debug)]
-pub struct Program {
-    pub statements: Vec<Statement>,
-}
-
-fn help() {
-    eprintln!("* SubCommands: ");
-    eprintln!("- build - Build NNV code into C");
-    eprintln!("- ast - Show AST without building");
-    eprintln!("- tokens - Show vector of tokens");
-    eprintln!("- version - Show compilator version");
-}
-
-pub enum State {
-    Build,
-    Ast,
-    Tokens,
-    Version,
+    /// Generate C code from NNV source
+    #[command(name = "generate")]
+    OnlyGenerateC { input_file: String },
 }
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        eprintln!("Usage: {} <subcommand>", args[0]);
-        help();
-        exit(1);
-    }
+    let cli = Cli::parse();
 
-    let subcommand = args[1].to_lowercase();
-    let state = match subcommand.as_str() {
-        "build" => State::Build,
-        "ast" => State::Ast,
-        "tokens" => State::Tokens,
-        "version" => State::Version,
-        _ => {
-            eprintln!("Unknown subcommand: {}", subcommand);
-            exit(1);
-        }
-    };
-    match state {
-        State::Build => {
-            let buf = fs::read_to_string("main.nnv").expect("Read error!");
+    match &cli.cmd {
+        Commands::Build {
+            input_file,
+            output_file,
+            mode,
+        } => {
+            let path = PathBuf::from(input_file);
+            let opened = read_to_str(path);
 
-            let lexer = Lexer::new(buf.as_str());
+            let lexer = Lexer::new(&opened);
             let tokens = lexer.tokenize_all();
 
-            let mut parser = Parser::new(&tokens);
-            let ast = parser.parse().unwrap();
+            let mut parser = ParserNNV::new(&tokens);
+            let program = parser.parse();
 
-            let mut codegen = Codegen::new(ast);
-            codegen.generate();
+            let mut asm = AsmCodegen::new(program.unwrap());
 
-            codegen.to_c_file("main.c");
-            if let Err(err) = codegen.compile("main.c", "./runtime", "./runtime") {
-                eprintln!("Error: {err}");
+            match mode {
+                Some(BuildMode::Assembly) => {
+                    asm.generate();
+                    let emmited = asm.emitate_asm();
+                    write_asm(output_file.as_ref().unwrap(), emmited).unwrap();
+                }
+                _ => {}
             }
         }
-        State::Ast => {
-            let buf = fs::read_to_string("main.nnv").expect("Read error!");
 
-            let lexer = Lexer::new(buf.as_str());
+        Commands::Lexed { input_file } => {
+            let path = PathBuf::from(input_file);
+            let opened = read_to_str(path);
+
+            let lexer = Lexer::new(&opened);
             let tokens = lexer.tokenize_all();
 
-            let mut parser = Parser::new(&tokens);
-            let ast = parser.parse().unwrap();
-            show_ast(&ast);
-
-            println!("{:#?}", ast);
-        }
-        State::Tokens => {
-            let buf = fs::read_to_string("main.nnv").expect("Read error!");
-
-            let lexer = Lexer::new(buf.as_str());
-            let tokens = lexer.tokenize_all();
             println!("{:?}", tokens);
         }
-        State::Version => {
-            println!("[GNU Novac Never-Value] gnnv compiler version: b.01-2026-rc01");
+
+        Commands::AST {
+            input_file,
+            format_type,
+        } => {
+            let path = PathBuf::from(input_file);
+            let opened = read_to_str(path);
+
+            let lexer = Lexer::new(&opened);
+            let tokens = lexer.tokenize_all();
+
+            let mut parser = ParserNNV::new(&tokens);
+            let program = parser.parse();
+
+            let np = &program.unwrap();
+
+            match format_type.as_str() {
+                "new" => show_parsed_nicely(np),
+                "raw" => println!("{:#?}", np),
+                _ => {
+                    eprintln!("Incorrect formatting mode. Available: `raw`, `new`");
+                    exit(1);
+                }
+            }
+        }
+
+        _ => {
+            todo!("Нет команды");
         }
     }
-
-    // println!("{:#?}", tokens);
 }

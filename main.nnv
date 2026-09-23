@@ -1,4 +1,11 @@
-set a = 60;
-if a < 120 {
-    
+met main() {
+    set value: *u64 = NULL;
+
+    set in_value: u64 = 888;
+
+    *value = &in_value;
+
+    set index_1: u8 = value[1];
+
+    exit(index_1 as i32);
 }

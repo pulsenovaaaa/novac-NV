@@ -1,9 +1,17 @@
-use std::{iter::Peekable, str::Chars};
+use std::{fs, io::Read, iter::Peekable, path::PathBuf, str::Chars};
 
-use crate::Token;
+use crate::enums::Token;
 
 pub struct Lexer<'a> {
     chars: Peekable<Chars<'a>>,
+}
+
+pub fn read_to_str(fd: PathBuf) -> String {
+    let mut file = fs::File::open(fd).unwrap();
+
+    let mut contents = String::new();
+    file.read_to_string(&mut contents).unwrap();
+    contents
 }
 
 impl<'a> Lexer<'a> {
@@ -34,13 +42,15 @@ impl<'a> Lexer<'a> {
         }
 
         match ident.as_str() {
-            "exit" =>       Token::KeywordExit,
-            "set" =>        Token::KeywordSet,
-            "if" =>         Token::KeywordIf,
-            "else" =>       Token::KeywordElse,
-            "putchar" =>    Token::KeywordPutChar,
-            "rtm_print" =>  Token::CRuntimeKeywordPrint,
-            _ =>            Token::Identifier(ident),
+            "exit" => Token::KeywordExit,
+            "set" => Token::KeywordSet,
+            "if" => Token::KeywordIf,
+            "else" => Token::KeywordElse,
+            "return" => Token::KeywordReturn,
+            "putchar" => Token::KeywordPutChar,
+            "rtm_print" => Token::CRuntimeKeywordPrint,
+            "met" => Token::KeywordMet,
+            _ => Token::Identifier(ident),
         }
     }
 
@@ -95,7 +105,12 @@ impl<'a> Lexer<'a> {
             }
             '-' => {
                 self.chars.next();
-                Token::BinMinus
+                if self.chars.peek() == Some(&'>') {
+                    self.chars.next();
+                    Token::Arrow
+                } else {
+                    Token::BinMinus
+                }
             }
             '*' => {
                 self.chars.next();
@@ -123,7 +138,15 @@ impl<'a> Lexer<'a> {
                 } else {
                     Token::LogicalLess
                 }
-            },
+            }
+            '.' => {
+                self.chars.next();
+                Token::Dot
+            }
+            ',' => {
+                self.chars.next();
+                Token::Comma
+            }
             '>' => {
                 self.chars.next();
                 if self.chars.peek() == Some(&'=') {
@@ -132,15 +155,15 @@ impl<'a> Lexer<'a> {
                 } else {
                     Token::LogicalGreater
                 }
-            },
+            }
             '{' => {
                 self.chars.next();
                 Token::OpenCurly
-            },
+            }
             '}' => {
                 self.chars.next();
                 Token::CloseCurly
-            },
+            }
             '!' => {
                 self.chars.next();
                 if self.chars.peek() == Some(&'=') {
@@ -167,6 +190,8 @@ impl<'a> Lexer<'a> {
                     match self.chars.next() {
                         Some('"') => break,
                         Some(c) => string.push(c),
+
+                        #[allow(unreachable_patterns)]
                         Some('\\') => {
                             let escaped = self.chars.next().ok_or("Unterminated escape char")?;
                             let unescaped = match escaped {
