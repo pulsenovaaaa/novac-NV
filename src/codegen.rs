@@ -61,7 +61,7 @@ impl Codegen {
                 target_type: _,
                 expr,
             } => self.generate_expression(expr),
-            _ => {"sdasdasd".to_string()}
+            _ => "sdasdasd".to_string(),
         }
     }
 

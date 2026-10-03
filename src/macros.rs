@@ -197,9 +197,9 @@ where
             let elapsed = start_time.elapsed().as_secs_f64();
 
             print!(
-                "\r\x1B[K{} {} ({}s)", 
-                frame.bold().green(), 
-                message.cyan(), 
+                "\r\x1B[K{} {} ({}s)",
+                frame.bold().green(),
+                message.cyan(),
                 elapsed.to_string().dimmed()
             );
             io::stdout().flush().unwrap();

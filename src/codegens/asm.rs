@@ -69,7 +69,8 @@ impl AsmCodegen {
         let label = format!("str_{}", self.label_counter);
         self.label_counter += 1;
 
-        self.rodata_section.push_str(&format!("    {}: db \"{}\", 0\n", label, text));
+        self.rodata_section
+            .push_str(&format!("    {}: db \"{}\", 0\n", label, text));
         label
     }
 
