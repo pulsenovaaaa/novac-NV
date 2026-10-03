@@ -45,11 +45,17 @@ impl<'a> Lexer<'a> {
             "exit" => Token::KeywordExit,
             "set" => Token::KeywordSet,
             "if" => Token::KeywordIf,
+            "use" => Token::KeywordUse,
+            "import" => Token::KeywordImport,
+            "module" => Token::KeywordModule,
             "else" => Token::KeywordElse,
             "return" => Token::KeywordReturn,
             "putchar" => Token::KeywordPutChar,
             "rtm_print" => Token::CRuntimeKeywordPrint,
             "met" => Token::KeywordMet,
+            "for" => Token::KeywordFor,
+            "while" => Token::KeywordWhile,
+            "in" => Token::KeywordIn,
             _ => Token::Identifier(ident),
         }
     }
@@ -81,6 +87,14 @@ impl<'a> Lexer<'a> {
             ')' => {
                 self.chars.next();
                 Token::CloseParen
+            }
+            '[' => {
+                self.chars.next();
+                Token::OpenBracket
+            }
+            ']' => {
+                self.chars.next();
+                Token::CloseBracket
             }
             ';' => {
                 self.chars.next();
@@ -141,7 +155,17 @@ impl<'a> Lexer<'a> {
             }
             '.' => {
                 self.chars.next();
-                Token::Dot
+                if self.chars.peek() == Some(&'.') {
+                    self.chars.next();
+                    if self.chars.peek() == Some(&'=') {
+                        self.chars.next();
+                        Token::DotDotEq
+                    } else {
+                        Token::DotDot
+                    }
+                } else {
+                    Token::Dot
+                }
             }
             ',' => {
                 self.chars.next();

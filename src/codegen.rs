@@ -1,9 +1,8 @@
+use colored::Colorize;
 use std::{fs, process::Command};
 
-use crate::{
-    enums::{Expression, NType, Op, Program, Statement},
-    warning,
-};
+use crate::enums::{Expression, NType, Op, Program, Statement};
+use crate::{error, success, warning};
 
 pub struct Codegen {
     version: String,
@@ -62,6 +61,7 @@ impl Codegen {
                 target_type: _,
                 expr,
             } => self.generate_expression(expr),
+            _ => {"sdasdasd".to_string()}
         }
     }
 

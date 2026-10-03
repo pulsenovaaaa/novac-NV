@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token {
     // Слова
     KeywordExit,
@@ -9,6 +9,12 @@ pub enum Token {
     CRuntimeKeywordPrint,
     KeywordMet,
     KeywordReturn,
+    KeywordUse,
+    KeywordImport,
+    KeywordModule,
+    KeywordFor,
+    KeywordWhile,
+    KeywordIn,
 
     // Операторы (Пока что в общих токенах)
     BinPlus,
@@ -58,21 +64,25 @@ pub enum Token {
     Dollar,
     Slash,
     Dot,
+    DotDot,
+    DotDotEq,
     Comma,
     Colon,
     SemiColon,
-    OpenParen,
-    CloseParen,
     Arrow,
 
+    OpenParen,
+    CloseParen,
     OpenCurly,
     CloseCurly,
-    Unknown,
+    OpenBracket,
+    CloseBracket,
 
+    Unknown,
     Scrap,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum BinaryOp {
     GreaterEq,
     LessEq,
@@ -82,7 +92,7 @@ pub enum BinaryOp {
     Equal,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Op {
     Add,
     Sub,
@@ -96,7 +106,19 @@ pub enum Op {
     Equal,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+pub struct StructField {
+    pub name: String,
+    pub ty: NType,
+}
+
+#[derive(Debug, Clone)]
+pub struct EnumField {
+    pub name: String,
+    pub ty: NType,
+}
+
+#[derive(Debug, Clone)]
 pub enum Expression {
     Int(i64),
     Var(String),
@@ -105,6 +127,12 @@ pub enum Expression {
 
     AddrOf(Box<Expression>),
     Deref(Box<Expression>),
+
+    Range {
+        start: Box<Expression>,
+        end: Box<Expression>,
+        inclusive: bool,
+    },
 
     Call {
         name: String,
@@ -140,7 +168,9 @@ pub enum NType {
 
     String,
     Void,
+
     Ptr(Box<NType>),
+    Ref(Box<NType>),
 }
 
 impl NType {
@@ -149,7 +179,7 @@ impl NType {
             NType::U8 | NType::I8 | NType::Char => 1,
             NType::U16 | NType::I16 => 2,
             NType::U32 | NType::I32 | NType::Int => 4,
-            NType::U64 | NType::I64 | NType::Ptr(_) | NType::String => 8,
+            NType::U64 | NType::I64 | NType::Ptr(_) | NType::String | NType::Ref(_) => 8,
             NType::Void => 0,
         }
     }
@@ -182,6 +212,33 @@ pub enum Statement {
     },
     CRtmPrint(Expression),
     Return(Option<Expression>),
+
+    Import(String),
+    Module(String),
+
+    Use(Box<Statement>),
+
+    While {
+        condition: Expression,
+        body: Vec<Statement>,
+    },
+
+    For {
+        ident: String,
+        val: Expression,
+        body: Vec<Statement>,
+    },
+
+    Struct {
+        name: String,
+        fields: Vec<StructField>,
+    },
+
+    Enum {
+        name: String,
+        fields: Vec<EnumField>,
+    },
+
     Assign {
         name: String,
         val: Expression,

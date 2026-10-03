@@ -48,7 +48,7 @@ impl AsmCodegen {
         }
     }
 
-    fn push_helper_exit_function(&mut self) {
+    fn helper_exit_function(&mut self) {
         self.exit_exists = true;
 
         let fn_link = self.new_func("nnv_hlpr_exit_fn");
@@ -69,8 +69,7 @@ impl AsmCodegen {
         let label = format!("str_{}", self.label_counter);
         self.label_counter += 1;
 
-        self.rodata_section
-            .push_str(&format!("    {}: db \"{}\", 0\n", label, text));
+        self.rodata_section.push_str(&format!("    {}: db \"{}\", 0\n", label, text));
         label
     }
 
@@ -82,15 +81,15 @@ impl AsmCodegen {
         match val {
             Expression::Int(intv) => {
                 self.data_section
-                    .push_str(&format!("    {}: dq {}\n", name, intv));
+                    .push_str(&format!("    {} dq {}\n", name, intv));
             }
             Expression::Char(charv) => {
                 self.data_section
-                    .push_str(&format!("    {}: db '{}'\n", name, charv));
+                    .push_str(&format!("    {} db '{}'\n", name, charv));
             }
             Expression::ConstChar(strv) => {
                 self.data_section
-                    .push_str(&format!("    {}: db \"{}\", 0\n", name, strv));
+                    .push_str(&format!("    {} db \"{}\", 0\n", name, strv));
             }
             _ => {}
         }
@@ -100,7 +99,7 @@ impl AsmCodegen {
 
     fn generate_exit(&mut self, code: usize, buffer: &mut String) -> Result<(), &'static str> {
         if !self.exit_exists {
-            self.push_helper_exit_function();
+            self.helper_exit_function();
         }
 
         writeln!(buffer, "    ; exit statement with code '{}'", code).unwrap();
@@ -147,28 +146,29 @@ impl AsmCodegen {
     pub fn emitate_asm(&self) -> String {
         let mut final_asm = String::new();
 
-        final_asm.push_str("global _start\n");
+        final_asm.push_str("format ELF64 executable 3\n");
+        final_asm.push_str("entry _start\n\n");
 
         if !self.rodata_section.is_empty() {
-            final_asm.push_str("section .rodata\n");
+            final_asm.push_str("segment readable\n");
             final_asm.push_str(&self.rodata_section);
             final_asm.push_str("\n");
         }
 
         if !self.bss_section.is_empty() {
-            final_asm.push_str("section .bss\n");
+            final_asm.push_str("segment readable writable\n");
             final_asm.push_str(&self.bss_section);
             final_asm.push_str("\n");
         }
 
         if !self.data_section.is_empty() {
-            final_asm.push_str("section .data\n");
+            final_asm.push_str("segment readable writable\n");
             final_asm.push_str(&self.data_section);
             final_asm.push_str("\n");
         }
 
         // Секция .text всегда прописывается
-        final_asm.push_str("section .text\n");
+        final_asm.push_str("segment readable executable\n");
         final_asm.push_str(&self.text_section);
         final_asm.push_str("\n");
 

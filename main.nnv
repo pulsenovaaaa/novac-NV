@@ -1,11 +1,36 @@
+// Fib in my own Programming Language (*NNV)!
+met fib(n: u64) -> u64 {
+    if n == 0 {
+        return 0;
+    }
+    if n == 1 {
+        return 1;
+    }
+
+    set a: u64 = 0;
+    set b: u64 = 1;
+    set c: u64;
+
+    for i in 2..=n {
+        c = a + b;
+        a = b;
+        b = c;
+    }
+
+    return b;
+}
+
+
 met main() {
-    set value: *u64 = NULL;
+    // Call 'Fib' with 12 n's
+    set fib_series: u64 = fib(12);
 
-    set in_value: u64 = 888;
+    // Itoa fib_series
+    set fib_itoaed = itoa(fib_series);
 
-    *value = &in_value;
+    // Put itoaed string to stdout
+    puts(fib_itoaed);
 
-    set index_1: u8 = value[1];
-
-    exit(index_1 as i32);
+    // Newline
+    putchar('\n');
 }

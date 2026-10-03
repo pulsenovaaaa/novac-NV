@@ -1,7 +1,7 @@
 // Это NNV черт подери!
 
-met u32_to_string(value: u32) -> string {
-    set str: string = "";
+met u32_to_string(value: u32) -> str {
+    set str: str = "";
 
     if value == 0 {
         str.push('0');
@@ -16,18 +16,18 @@ met u32_to_string(value: u32) -> string {
     return str;
 }
 
-met func(value: u32) -> never {
-    set str3: string = "Here is itoa'ed value: ";
+met func(value: u32) -> str {
+    set str3: str = "Here is itoa'ed value: ";
     rtm_print(str3);
 
-    set str2: string = u32_to_string(value);
+    set str2: str = u32_to_string(value);
     rtm_print(str2);
 
     putchar('\n');
 }
 
 met main() {
-    set str1: string = "We are in function main!\n";
+    set str1: str = "We are in function main!\n";
     rtm_print(str1);
     func(565699);
 }

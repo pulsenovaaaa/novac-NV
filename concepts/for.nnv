@@ -1,0 +1,8 @@
+met main() {
+    set b = 0;
+    for i in 0..=10 {
+        set oi = i + 2;
+        b = b + oi;
+    }
+    exit(b);
+}

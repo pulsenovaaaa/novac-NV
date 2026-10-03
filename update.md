@@ -1,3 +1,10 @@
+```nnv_disp
+for <ident> in <start..end || start..=end> {...code...}
+```
+
+
+
+
 update №2
 
 ### Tokens:
